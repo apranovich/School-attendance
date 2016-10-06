@@ -20,17 +20,20 @@
 
     let model = ( () => {
       let students = [
-        { name: "Slappy the Frog", attendance: [] }, 
-        { name: "Lilly the Lizard", attendance: [] }, 
-        { name: "Paulrus the Walrus", attendance: [] }, 
-        { name: "Gregory the Goat", attendance: [] }, 
-        { name: "Adam the Anaconda", attendance: [] }
+        { id: 1, name: "Slappy the Frog", attendance: [] }, 
+        { id: 2, name: "Lilly the Lizard", attendance: [] }, 
+        { id: 3, name: "Paulrus the Walrus", attendance: [] }, 
+        { id: 4, name: "Gregory the Goat", attendance: [] }, 
+        { id: 5, name: "Adam the Anaconda", attendance: [] }
       ];
       const lessonsNumber = 12;
 
       return {
         getStudents: () => { 
           return localStorage.students ? JSON.parse(localStorage.students) : (helpers.fillLocalStorageWithStudents(students, lessonsNumber));
+        },
+        saveStudents: (students) => {
+          localStorage.students = JSON.stringify(students);
         }
       };
     })();
@@ -49,13 +52,15 @@
                 </thead>`;
       };
       let rowTemplate = (student) => {
-        let attendanceCheckboxes = student.attendance.reduce( (total, nextItem) => {
+        let attendanceCheckboxes = student.attendance.reduce( (total, nextItem, index) => {
           let value = nextItem ? "checked" : "";
           return total + `<td class="attend-col"><input type="checkbox" ${value}></td>`;
         }, "");
-        return `<tr class="student">
+        let missedLessons = student.attendance.filter( (item) => { return !item } );
+        return `<tr class="student" id="${student.id}">
                   <td class="name-col">${student.name}</td>
                   ${attendanceCheckboxes}
+                  <td class="missed-col">${missedLessons.length}</td>
                 </tr>`;
       };
       let bodyTemplate = (students) => {
@@ -67,22 +72,40 @@
 
       return {
         render: (students) => {
-          let entireHtml = `<table id="students-table">
-                              ${headerTemplate(students)}
-                              ${bodyTemplate(students)}
-                            </table>`;
-          let tableContainer = document.getElementById("table-container");
-          tableContainer.innerHtml = entireHtml;
+          let entireHtml = headerTemplate(students) + bodyTemplate(students);
+          let table = document.getElementById("students-table");
+          table.innerHTML = entireHtml;
+          let checkboxes = table.getElementsByTagName("input");
+          for(let checkbox of checkboxes){
+            checkbox.addEventListener('click', controller.recalculateRow);
+          }
         }
       };
     })();
 
     let controller = ( () => {
+      let students = model.getStudents();
 
       return {
         init: () => {
-          let students = model.getStudents();
           view.render(students);
+        },
+        recalculateRow: function () {
+          let parentRow = $(this).parent().parent();
+          let studentId = +parentRow.prop("id");
+          let missedElem = parentRow.find("td.missed-col");
+          let selectedRowCheckboxes = parentRow.find("td input");
+          let missedValue = 0;
+          selectedRowCheckboxes.each((index, elem) => {
+            let checked = $(elem).prop('checked');
+            if(!checked){
+              missedValue++
+            }
+            let student = students.filter((st) => {return st.id === studentId;})[0];
+            student.attendance[index] = checked;
+          });
+          missedElem.text(missedValue);
+          model.saveStudents(students);
         }
       };
     })();
